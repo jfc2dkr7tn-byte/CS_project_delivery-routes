@@ -27,6 +27,8 @@ SESSION_KEYS = [
     "start_coord",
     "stop_coords",
     "stop_addresses",
+    "break_points",
+    "fuel_stations",
 ]
 
 # ======================================================
@@ -301,6 +303,169 @@ def get_routes_info(
     return df, routes_sorted
 
 # ======================================================
+# Break planning and fuel/charge stops
+# ======================================================
+
+def plan_break_points(
+    route,
+    max_continuous_drive_min: float,
+    start_coord: str,
+    stop_coords: List[str],
+) -> List[dict]:
+    """
+    Plan rest breaks based on a maximum continuous driving time.
+    Breaks are placed at waypoints (start/stop/end), not in the middle of a leg.
+    Returns a list of dicts with waypoint_index, lat, lon.
+    """
+    if max_continuous_drive_min is None or max_continuous_drive_min <= 0:
+        return []
+
+    legs = route.get("legs", [])
+    if not legs:
+        return []
+
+    waypoints = [start_coord] + stop_coords + [start_coord]
+
+    drive_since_break_sec = 0.0
+    breaks: List[dict] = []
+    last_break_wp_index = 0
+
+    for i, leg in enumerate(legs):
+        leg_summary = leg.get("summary", {})
+        travel_sec = float(leg_summary.get("travelTimeInSeconds", 0.0))
+        drive_since_break_sec += travel_sec
+
+        wp_index = i + 1  # leg i goes from wp i to wp i+1
+
+        if drive_since_break_sec / 60.0 > max_continuous_drive_min and wp_index < len(waypoints):
+            # Avoid duplicating breaks at the same waypoint
+            if wp_index != last_break_wp_index:
+                coord_str = waypoints[wp_index]
+                lat, lon = parse_coord(coord_str)
+                breaks.append(
+                    {
+                        "waypoint_index": wp_index,
+                        "lat": lat,
+                        "lon": lon,
+                    }
+                )
+                last_break_wp_index = wp_index
+            drive_since_break_sec = 0.0
+
+    return breaks
+
+
+def find_nearest_station(
+    lat: float,
+    lon: float,
+    engine_type: str,
+    key: str,
+    radius_m: int = 10000,
+) -> Optional[dict]:
+    """
+    Find the nearest petrol station or EV charger around a coordinate using
+    TomTom Search API fuzzy search.
+    """
+    if engine_type == "Electric":
+        query = "electric vehicle charging"
+    else:
+        query = "petrol station"
+
+    base_url = "https://api.tomtom.com/search/2/search/" + urlparse.quote(query) + ".json"
+    params = {
+        "lat": lat,
+        "lon": lon,
+        "radius": radius_m,
+        "limit": 1,
+        "key": key,
+    }
+
+    try:
+        r = rq.get(base_url, params=params, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        results = data.get("results", [])
+        if not results:
+            return None
+        res = results[0]
+        pos = res.get("position", {})
+        poi = res.get("poi", {})
+        addr = res.get("address", {})
+        return {
+            "id": res.get("id"),
+            "name": poi.get("name", "Station"),
+            "lat": pos.get("lat"),
+            "lon": pos.get("lon"),
+            "address": addr.get("freeformAddress"),
+        }
+    except Exception:
+        return None
+
+
+def fetch_fuel_price_for_station(station_id: Optional[str], api_key: str) -> Optional[float]:
+    """
+    Placeholder for TomTom Fuel Prices API integration.
+
+    The Fuel Prices API is a separate Automotive API product and is not
+    available on the standard Freemium / PAYG keys. If your key has access,
+    you can implement the HTTP call here and return the relevant price
+    (e.g. petrol, diesel, etc.) for this station ID.
+    """
+    # TODO: Implement call to Fuel Prices API once you have access.
+    # See TomTom Fuel Prices API documentation for the exact endpoint and parameters.
+    _ = station_id, api_key
+    return None
+
+
+def plan_fuel_stops(
+    route,
+    vehicle_range_km: float,
+    engine_type: str,
+    start_coord: str,
+    stop_coords: List[str],
+    api_key: str,
+) -> List[dict]:
+    """
+    Plan refuelling / charging stops based on vehicle range in km.
+    We approximate fuel stops at waypoints (start/stop/end) and then search
+    for the nearest appropriate station around that waypoint.
+    Returns a list of dicts with lat, lon, name, address, and optional price.
+    """
+    if vehicle_range_km is None or vehicle_range_km <= 0:
+        return []
+
+    legs = route.get("legs", [])
+    if not legs:
+        return []
+
+    waypoints = [start_coord] + stop_coords + [start_coord]
+
+    distance_since_refuel_m = 0.0
+    fuel_stops: List[dict] = []
+
+    for i, leg in enumerate(legs):
+        leg_summary = leg.get("summary", {})
+        length_m = float(leg_summary.get("lengthInMeters", 0.0))
+        distance_since_refuel_m += length_m
+
+        if distance_since_refuel_m / 1000.0 > vehicle_range_km:
+            wp_index = i + 1
+            if wp_index < len(waypoints):
+                coord_str = waypoints[wp_index]
+                lat, lon = parse_coord(coord_str)
+
+                station = find_nearest_station(lat, lon, engine_type, api_key)
+                if station is not None:
+                    # Optionally fetch fuel price if your key has access
+                    price = fetch_fuel_price_for_station(station.get("id"), api_key)
+                    station["price"] = price
+                    fuel_stops.append(station)
+
+                distance_since_refuel_m = 0.0
+
+    return fuel_stops
+
+# ======================================================
 # Traffic Incidents
 # ======================================================
 
@@ -354,12 +519,16 @@ def create_route_map(
     start_coord: Optional[str] = None,
     stop_coords: Optional[List[str]] = None,
     stop_addresses: Optional[List[str]] = None,
+    break_points: Optional[List[dict]] = None,
+    fuel_stations: Optional[List[dict]] = None,
 ):
     """
     Create a Folium map with:
     - route geometry
     - markers for start/end and stops
     - optional traffic incidents overlay
+    - optional break markers
+    - optional fuel/charging station markers
     """
     poly_points = extract_poly_points(route)
     if not poly_points:
@@ -405,6 +574,42 @@ def create_route_map(
                 icon=folium.Icon(color="blue", icon="flag"),
             ).add_to(m)
 
+    # Break markers (different color)
+    if break_points:
+        for bp in break_points:
+            lat = bp.get("lat")
+            lon = bp.get("lon")
+            if lat is None or lon is None:
+                continue
+            folium.Marker(
+                location=[lat, lon],
+                tooltip="Planned break",
+                icon=folium.Icon(color="purple", icon="pause"),
+            ).add_to(m)
+
+    # Fuel / charging station markers (yet another color)
+    if fuel_stations:
+        for fs in fuel_stations:
+            lat = fs.get("lat")
+            lon = fs.get("lon")
+            if lat is None or lon is None:
+                continue
+            name = fs.get("name", "Fuel/Charge stop")
+            address = fs.get("address")
+            price = fs.get("price")
+            tooltip_parts = [name]
+            if address:
+                tooltip_parts.append(address)
+            if price is not None:
+                tooltip_parts.append(f"Preis: {price:.2f}")
+            tooltip = " | ".join(tooltip_parts)
+
+            folium.Marker(
+                location=[lat, lon],
+                tooltip=tooltip,
+                icon=folium.Icon(color="orange", icon="tint"),
+            ).add_to(m)
+
     # Route line
     folium.PolyLine(poly_points, weight=6, opacity=0.8).add_to(m)
 
@@ -439,15 +644,30 @@ def create_route_map(
 # ETAs and Costs
 # ======================================================
 
-def compute_etas_for_stops(route, depart_dt: datetime, stop_names: List[str]) -> pd.DataFrame:
+def compute_etas_for_stops(
+    route,
+    depart_dt: datetime,
+    stop_names: List[str],
+    breaks: Optional[List[dict]] = None,
+    break_duration_min: float = 0.0,
+) -> pd.DataFrame:
     """
     Calculate ETA for each leg based on the legs and the departure time.
     stop_names: list including Start, each stop, and back to Start (round trip!)
-    Returns a DataFrame with From, To, Leg travel time, ETA.
+    breaks: list of dicts with 'waypoint_index' indicating that after arriving
+            at this waypoint, a break of break_duration_min minutes is taken.
+    Returns a DataFrame with From, To, LegTravelTimeMin, ETA.
     """
     legs = route.get("legs", [])
     if not legs:
         return pd.DataFrame()
+
+    break_indices = set()
+    if breaks:
+        for bp in breaks:
+            idx = bp.get("waypoint_index")
+            if isinstance(idx, int):
+                break_indices.add(idx)
 
     records = []
     current_time = depart_dt
@@ -466,6 +686,20 @@ def compute_etas_for_stops(route, depart_dt: datetime, stop_names: List[str]) ->
                     "ETA_Arrival": current_time,
                 }
             )
+
+        # Break after arrival at waypoint i+1, before leaving it
+        wp_index = i + 1
+        if break_duration_min > 0 and wp_index in break_indices:
+            current_time = current_time + timedelta(minutes=break_duration_min)
+            if i + 1 < len(stop_names):
+                records.append(
+                    {
+                        "From": stop_names[i + 1],
+                        "To": f"Break at {stop_names[i + 1]}",
+                        "LegTravelTimeMin": 0.0,
+                        "ETA_Arrival": current_time,
+                    }
+                )
 
     return pd.DataFrame(records)
 
@@ -561,6 +795,34 @@ max_speed = st.sidebar.number_input(
     step=10,
 )
 
+st.sidebar.subheader("Driver constraints")
+
+max_drive_block_min = st.sidebar.number_input(
+    "Max continuous driving time (min)",
+    min_value=0,
+    max_value=600,
+    value=0,
+    step=15,
+    help="0 = no automatic breaks",
+)
+
+break_duration_min = st.sidebar.number_input(
+    "Break duration (min)",
+    min_value=0,
+    max_value=120,
+    value=15,
+    step=5,
+)
+
+vehicle_range_km = st.sidebar.number_input(
+    "Vehicle range (km)",
+    min_value=0.0,
+    max_value=2000.0,
+    value=0.0,
+    step=10.0,
+    help="0 = ignore range; no automatic fuel/charge stops",
+)
+
 st.sidebar.subheader("Multi-criteria weighting")
 
 time_weight = st.sidebar.slider(
@@ -640,9 +902,6 @@ if use_deadline:
         deadline_time = st.time_input("Deadline time", value=time(12, 0))
     deadline_dt = datetime.combine(deadline_date, deadline_time)
 
-st.markdown("### Route options")
-st.info("Die Reihenfolge der Stopps wird automatisch optimiert (Nearest-Neighbour).")
-
 # ------------------------------------------------------
 # Trigger routing
 # ------------------------------------------------------
@@ -717,7 +976,7 @@ if st.button("Calculate round trip"):
                 + ["Back to Start/End"]
             )
 
-            # ETAs for best route (we will recompute if user selects another route)
+            # ETAs for best route (without breaks; will be recomputed later for selected route)
             etas_df = compute_etas_for_stops(best_route, depart_dt, stop_names)
 
             # Store everything in session state
@@ -729,6 +988,8 @@ if st.button("Calculate round trip"):
             st.session_state["start_coord"] = start_coord
             st.session_state["stop_coords"] = stop_coords
             st.session_state["stop_addresses"] = stop_addresses
+            st.session_state["break_points"] = None
+            st.session_state["fuel_stations"] = None
             st.session_state["selected_route_idx"] = 0
 
     except Exception as e:
@@ -784,6 +1045,24 @@ if routes is not None and summary_df is not None:
         selected_route = routes[selected_idx]
         route_row = summary_df.loc[selected_idx]
 
+        # Plan breaks and fuel/charge stops for the selected route
+        break_points = plan_break_points(
+            selected_route,
+            max_continuous_drive_min=max_drive_block_min,
+            start_coord=start_coord_state,
+            stop_coords=stop_coords_state or [],
+        )
+        fuel_stations = plan_fuel_stops(
+            selected_route,
+            vehicle_range_km=vehicle_range_km,
+            engine_type=engine_type,
+            start_coord=start_coord_state,
+            stop_coords=stop_coords_state or [],
+            api_key=TOMTOM_API_KEY,
+        )
+        st.session_state["break_points"] = break_points
+        st.session_state["fuel_stations"] = fuel_stations
+
         # Key metrics
         col_k1, col_k2, col_k3, col_k4 = st.columns(4)
         with col_k1:
@@ -814,24 +1093,24 @@ if routes is not None and summary_df is not None:
             else:
                 st.metric("Estimated CO₂", "–")
 
-        # Deadline check for return to start
+        # Deadline check for return to start (ignores breaks for now)
         if deadline_dt is not None and tt_min is not None and not pd.isna(tt_min):
             arrival_last = depart_dt_state + timedelta(minutes=float(tt_min))
             diff_sec = (arrival_last - deadline_dt).total_seconds()
             if diff_sec > 0:
                 st.error(
-                    f"⚠️ Expected return to start: "
+                    f"⚠️ Expected return to start (without breaks): "
                     f"{arrival_last.strftime('%d.%m.%Y %H:%M')} "
                     f"(delay of {round(diff_sec / 60)} min)"
                 )
             else:
                 st.success(
-                    f"✅ Expected return to start: "
+                    f"✅ Expected return to start (without breaks): "
                     f"{arrival_last.strftime('%d.%m.%Y %H:%M')} "
                     f"(buffer of {round(-diff_sec / 60)} min)"
                 )
 
-        st.markdown("### Map of selected round trip (with traffic incidents)")
+        st.markdown("### Map of selected round trip (with traffic, breaks & fuel/charge stops)")
 
         if start_coord_state is not None:
             m = create_route_map(
@@ -840,6 +1119,8 @@ if routes is not None and summary_df is not None:
                 start_coord=start_coord_state,
                 stop_coords=stop_coords_state,
                 stop_addresses=stop_addresses_state,
+                break_points=break_points,
+                fuel_stations=fuel_stations,
             )
             if m is not None:
                 st_folium(m, width=1000, height=600)
@@ -853,12 +1134,20 @@ if routes is not None and summary_df is not None:
         st.markdown("## Route summaries (all variants)")
         st.dataframe(summary_df)
 
-        st.markdown("## ETAs per leg (for selected route)")
+        st.markdown("## ETAs per leg (for selected route, including breaks if configured)")
+
+        break_points_state = st.session_state.get("break_points")
 
         # Recompute ETAs for the selected route to reflect correct timings
         if stops is not None and depart_dt_state is not None:
+            selected_idx_state = st.session_state.get("selected_route_idx", 0)
+            selected_route_state = routes[selected_idx_state]
             etas_df_selected = compute_etas_for_stops(
-                selected_route, depart_dt_state, stops
+                selected_route_state,
+                depart_dt_state,
+                stops,
+                breaks=break_points_state,
+                break_duration_min=break_duration_min,
             )
             if etas_df_selected is not None and not etas_df_selected.empty:
                 df_show = etas_df_selected.copy()
