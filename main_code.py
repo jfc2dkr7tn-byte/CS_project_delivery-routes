@@ -37,7 +37,6 @@ def call_route_api(coords, engine_type, weight, max_speed):
             'routeType': "fastest",
             'traffic': 'true', 
             'computeBestOrder': 'true',
-            "routeRepresentation": "polyline",
             "vehicleEngineType": engine_type,
             "vehicleWeight": int(weight), 
             "vehicleMaxSpeed": int(max_speed)
@@ -51,60 +50,63 @@ def call_route_api(coords, engine_type, weight, max_speed):
         raise ValueError('No route returned from API!') # Error check
     
     route = routes[0] # extract the first info (similar to search above)
-
     summary = route["summary"]
 
     travel_time_sec = summary ['travelTimeInSeconds']
     length_m = summary['lengthInMeters']
 
-    path_coords = [
-        [point.get("longitude", point.get("lon")),
-         point.get("latitude", point.get("lat"))]
-        for leg in route.get("legs", [])
-        for point in leg.get("points", [])
-        if point.get("latitude", point.get("lat")) is not None
-        and point.get("longitude", point.get("lon")) is not None
-    ]
-
-    # ---------- build optimized order ----------
-    # NOTE: optimizedWaypoints lives on *route*, not on the top level
+    # ---------- optimierte Reihenfolge der Wegpunkte ----------
     optimized_waypoints = route.get("optimizedWaypoints", [])
-    n_locations = len(coords.split(":"))  # all points in coords
 
-    # default = original order
+    # Anzahl aller Orte in coords: start + waypoints + end
+    n_locations = len(coords.split(":"))
+    # Anzahl echter Waypoints (alles zwischen Start und Endpunkt)
+    n_waypoints = max(n_locations - 2, 0)
+
+    # Default: ursprüngliche Reihenfolge
     optimized_order = list(range(n_locations))
 
-    if optimized_waypoints:
-        temp_order = [None] * n_locations
+    if optimized_waypoints and n_waypoints > 0:
+        # optimierte Reihenfolge nur für die "Mitte"
+        middle_order = [None] * n_waypoints
 
         for wp in optimized_waypoints:
-            provided = wp.get("providedIndex")
-            optimized_idx = wp.get("optimizedIndex")
+            provided_wp_idx = wp.get("providedIndex")
+            optimized_wp_idx = wp.get("optimizedIndex")
+
+            # Indizes aus API: 0..n_waypoints-1 (nur Waypoints!)
             if (
-                provided is None
-                or optimized_idx is None
-                or not (0 <= provided < n_locations)
-                or not (0 <= optimized_idx < n_locations)
+                provided_wp_idx is None
+                or optimized_wp_idx is None
+                or not (0 <= provided_wp_idx < n_waypoints)
+                or not (0 <= optimized_wp_idx < n_waypoints)
             ):
                 continue
-            # original index at its optimized position
-            temp_order[optimized_idx] = provided
 
-        # fill remaining slots (typically start and final destination)
-        remaining = [i for i in range(n_locations) if i not in temp_order]
-        for i in range(len(temp_order)):
-            if temp_order[i] is None and remaining:
-                temp_order[i] = remaining.pop(0)
+            # Waypoint-Index → Location-Index (Shift um +1):
+            # 0 -> 1, 1 -> 2, ..., (n_waypoints-1) -> (n_locations-2)
+            location_idx = provided_wp_idx + 1
+            middle_order[optimized_wp_idx] = location_idx
 
-        optimized_order = temp_order
-    # -------------------------------------------
+        # Falls Lücken geblieben sind: mit noch nicht verwendeten Mittelpunkten füllen
+        remaining = [
+            loc_idx
+            for loc_idx in range(1, n_locations - 1)  # nur echte Waypoints
+            if loc_idx not in middle_order
+        ]
+        for i in range(n_waypoints):
+            if middle_order[i] is None and remaining:
+                middle_order[i] = remaining.pop(0)
 
+        # Finale Reihenfolge: Start (0) + optimierte Mitte + Endpunkt (n_locations-1)
+        optimized_order = [0] + middle_order + [n_locations - 1]
+
+    # in session_state ablegen (falls du es anderswo brauchst)
     st.session_state.travelTimeSeconds = travel_time_sec
     st.session_state.length_m = length_m
-    st.session_state.route_path = path_coords
     st.session_state.optimized_order = optimized_order
 
-    return travel_time_sec, length_m, path_coords, optimized_order
+    return travel_time_sec, length_m, optimized_order
 
 
 # -------- CONFIGURATIONS
@@ -235,10 +237,11 @@ def show_calculation_page():
         
         coord_parts.append(f'{lat_start},{lon_start}')
 
-        st.session_state.coords = ":".join(coord_parts) # tomtom requires a special format with':'
+        coords_str = ":".join(coord_parts)
+        st.session_state.coords = coords_str
 
-        travel_time_sec, length_m, route_path, optimized_order = call_route_api(
-            st.session_state.coords,
+        travel_time_sec, length_m, optimized_order = call_route_api(
+            coords_str, 
             st.session_state.vehicleEngineType,
             st.session_state.vehicleWeight,
             st.session_state.vehicleMaxSpeed,
