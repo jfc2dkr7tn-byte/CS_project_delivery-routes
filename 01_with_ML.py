@@ -7,6 +7,87 @@ import itertools
 
 api_key = 'jCj3v16W0cJMzI4m2GtkQ32lwmkmUVki'
 
+# -------- CONFIGURATIONS
+st.set_page_config(
+    page_title="Route Planner",
+    layout="centered",
+)
+
+# -------- SIMPLE BLUE THEME
+st.markdown("""
+<style>
+    /* Main background */
+    .stApp {
+        background-color: #e4ecf7;
+    }
+    
+    /* Sidebar */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #3b5bcc, #60a5fa);
+    }
+    
+    /* All text in sidebar white */
+    section[data-testid="stSidebar"] * {
+        color: white !important;
+    }
+    
+    /* Headers blue */
+    h1, h2, h3 {
+        color: #1e40af;
+    }
+    
+    /* Primary buttons */
+    .stButton > button[kind="primary"] {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+    
+    .stButton > button[kind="primary"]:hover {
+        background: #2563eb;
+    }
+    
+    /* Other buttons */
+    .stButton > button:not([kind="primary"]) {
+        background: #dbeafe;
+        color: #1e40af;
+        border: 2px solid #3b82f6;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+    
+    /* Input fields */
+    .stTextInput > div > div > input,
+    .stSelectbox > div > div,
+    .stNumberInput > div > div > input {
+        border: 2px solid #93c5fd;
+        border-radius: 6px;
+    }
+    
+    .stTabs [data-baseweb="tab-list"] {
+        border-bottom: 2px solid #dbeafe;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background: transparent;
+        color: #64748b;
+        border: none;
+        padding: 12px 24px;
+        font-weight: 500;
+    }
+    
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        color: #3b82f6 !important;
+        font-weight: 600;
+        border-bottom: 3px solid #3b82f6 !important;
+        background: transparent !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
 # -------- MANUAL OPTIMIZATION FUNCTION
 def call_route_api_with_optimization(start_coords, waypoint_coords, engine_type, weight, max_speed):
     '''
@@ -173,12 +254,6 @@ def call_search_api(location_str):
 
     return lat, lon
 
-# -------- CONFIGURATIONS
-st.set_page_config(
-    page_title="Route Planner",
-    layout="centered",
-)
-
 # Initialize session state
 if 'page' not in st.session_state:
     st.session_state.page = 'Route Specifications'
@@ -199,7 +274,11 @@ st.sidebar.write('''
 with st.sidebar.expander('About us', expanded=False):
     st.markdown("""
     **Motivation:**
-    relevance, story, etc.
+    We saw a lack of Vehicle Specification and stopover optimization in exisitng applications.
+                
+    **Usecase:**
+    - Planning of truck routes for international logistics.
+    - *(works also: Optimal route for dropping friends/familiy off after events.)*
 
     **Group members:**
     - Patrick Stoffel  
@@ -212,6 +291,10 @@ with st.sidebar.expander('About us', expanded=False):
 # -------- PAGE 1: Route Specifications
 def show_route_specs_page():
     st.title("Route Specifications")
+    st.write('''
+Info: The route is always calculated as a round trip back to the starting point, 
+             please provide the demanded information and specification.
+             ''')
     
     st.subheader("Starting Point")
     start_loc = st.text_input(
