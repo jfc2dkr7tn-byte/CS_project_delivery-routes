@@ -1,0 +1,16 @@
+DEFAULT_VEHICLE_WEIGHT = 2000
+MAX_VEHICLE_WEIGHT = 50000
+MIN_VEHICLE_WEIGHT = 500
+
+DEFAULT_MAX_SPEED = 90
+MAX_SPEED_LIMIT = 200
+MIN_SPEED_LIMIT = 20
+
+MAX_PERMUTATIONS = 24
+CACHE_TTL = 3600  # seconds
+
+ENGINE_TYPES = {
+    "combustion": "diesel",
+    "electric": "electric",
+    "hydrogen": "hydrogen"
+}
