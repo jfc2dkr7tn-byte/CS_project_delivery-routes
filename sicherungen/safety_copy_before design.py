@@ -91,7 +91,7 @@ st.markdown("""
     
     /* Headerlines  */
     h1, h2, h3 {
-        color: #010139 !important, ;
+        color: #010139 !important;
     }
     
     /* Primary buttons  */
@@ -344,8 +344,11 @@ def call_search_api(location_str):
         results = data_search.get('results', []) # store it directly in a list
         if not results:
             raise ValueError(f"No results found for '{location_str}'") # raise error with location if no results found
-            position = results[0]['position']
-            return position['lat'], position['lon']
+        position = results[0]['position']
+        lat = position['lat']
+        lon = position['lon']
+        return lat, lon
+    
     except requests.exceptions.Timeout:
         st.error(f"Request timed out for location: {location_str}")
         raise
@@ -416,7 +419,7 @@ def show_route_specs_page():
         st.subheader("Starting Point")
         start_loc = st.text_input(
             "Please enter starting point:",
-            placeholder="e.g.: Zeusa 1a, 80-180 Kowale, Polen",
+            placeholder="Format: Zeusa 1a, 80-180 Kowale, Polen",
             key="start_input"
         )
         
@@ -425,7 +428,7 @@ def show_route_specs_page():
             st.session_state.stopovers[i] = st.text_input(
                 f"Please enter Stopover {i+1}:",
                 value=st.session_state.stopovers[i],
-                placeholder="e.g.:Rothusstrasse 88, 3065 Bolligen, Schweiz",
+                placeholder="Format: Rothusstrasse 88, 3065 Bolligen, Schweiz",
                 key=f"stopover_{i}"
             )
         
@@ -512,6 +515,7 @@ def show_vehicle_specs_page():
                 st.rerun()
 
 # -------- PAGE 3: Calculation and Results
+
 def show_calculation_page():
     st.markdown("""
         <style>
@@ -523,17 +527,6 @@ def show_calculation_page():
             }
             section[data-testid="stSidebar"] {
                 width: 400px !important;
-            }
-            /* Change default text color to blue */
-            .stApp {
-                color: #0F1A2B;
-            }
-            p, span, div {
-                color: #0F1A2B;
-            }
-            /* Download button text color */
-            .stDownloadButton button {
-                color: #0F1A2B !important;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -558,17 +551,20 @@ def show_calculation_page():
                 lat, lon = call_search_api(name)
                 stop_coords.append(f"{lat},{lon}")
             
-            # 2. Optimize
-            # Retrieve the setting (default to True if not set)
+            # 2. Get trip type BEFORE optimization
             is_round_trip = st.session_state.get('is_round_trip', True)
             
+            # 3. Optimize (ONLY ONCE!)
             travel_time_sec, length_m, optimized_order, route_geometry = call_route_api_with_optimization(
-                start_coords, stop_coords, st.session_state.vehicleEngineType,
-                st.session_state.vehicleWeight, st.session_state.vehicleMaxSpeed,
+                start_coords, 
+                stop_coords, 
+                st.session_state.vehicleEngineType,
+                st.session_state.vehicleWeight, 
+                st.session_state.vehicleMaxSpeed,
                 is_round_trip=is_round_trip 
             )
             
-            # 3. ML Correction
+            # 4. ML Correction
             from ml_model import predict_corrected_time
             
             corrected_time_min = predict_corrected_time(
@@ -581,7 +577,7 @@ def show_calculation_page():
                 traffic=1.0
             )
 
-            # 4. Build Locations
+            # 5. Build Locations
             all_locations = []
             # Add Start
             all_locations.append({"type": "Start", "name": st.session_state.start_loc, "lat": lat_start, "lon": lon_start})
@@ -613,14 +609,6 @@ def show_calculation_page():
             
             # Implement Sidebar for Results
             with st.sidebar:
-                # A. Start New Route Button
-                if st.button("Start New Route", use_container_width=True, type="primary"):
-                    st.session_state.page = "Route Specifications"
-                    st.rerun()
-                
-                st.divider()
-                
-                # B. Route Summary
                 st.title("Results")
                 
                 # Adding estimated time with ML correction factor
@@ -639,91 +627,82 @@ def show_calculation_page():
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # C. Quick Navigation
-                st.caption("Quick Navigation")
-                # Mini List for quick clicks
-                for seq, idx in enumerate(optimized_order, 1):
-                    loc = all_locations[idx]
-                    st.markdown(f"**{seq}.** {loc['name'].split(',')[0]}")
-                
-                st.divider()
-                
-                # D. Export Options (Side by Side)
+                # Download Route Details with a CSV 
                 st.subheader("Export Options")
-                col1, col2 = st.columns(2)
-                
                 df = generate_route_csv(all_locations, optimized_order, length_m, corrected_time_min)
                 csv = df.to_csv(index=False)
                 
-                with col1:
-                    st.download_button(
-                        label="Download CSV",
-                        data=csv,
-                        file_name="route_details.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
+                st.download_button(
+                    label="Download CSV",
+                    data=csv,
+                    file_name="route_details.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
                 
                 route_text = f"Route Summary\nTotal Distance: {length_m/1000:.1f} km\nEstimated Time: {corrected_time_min/60:.2f} h\n\n"
                 for seq, idx in enumerate(optimized_order, 1):
                     loc = all_locations[idx]
                     route_text += f"{seq}. {loc['type']}: {loc['name']}\n"
                 
-                with col2:
-                    st.download_button(
-                        label="Download TXT",
-                        data=route_text,
-                        file_name="route_summary.txt",
-                        mime="text/plain",
-                        use_container_width=True
-                    )
+                st.download_button(
+                    label="Download TXT",
+                    data=route_text,
+                    file_name="route_summary.txt",
+                    mime="text/plain",
+                    use_container_width=True
+                )
                 
                 st.divider()
                 
-                # E. View Toggle Button
-                btn_label = "View Full Details on Route" if st.session_state.view_mode == 'map' else "Back to Map"
-                st.button(btn_label, on_click=toggle_view_mode, type="secondary", use_container_width=True)
+                # Toggle Button
+                btn_label = "⛶ View Full Details" if st.session_state.view_mode == 'map' else "Back to Map"
+                st.button(btn_label, on_click=toggle_view_mode, type="primary", use_container_width=True)
+                
+                st.divider()
 
-            # 
-            
-            # VIEW A: Detailed LIST
+                # Map Controls 
+                if st.session_state.view_mode == 'map':
+                    st.subheader("Map Layers")
+                    style_options = {"Light": "mapbox://styles/mapbox/light-v10", "Dark": "mapbox://styles/mapbox/dark-v10", "Satellite": "mapbox://styles/mapbox/satellite-v9"}
+                    selected_style = st.selectbox("Map Style", list(style_options.keys()), label_visibility="collapsed", index=0, placeholder="Select Map Style")
+                    show_traffic = st.checkbox("Show Real-time Traffic", value=False)
+                    
+                    st.divider()
+                    st.caption("Quick Navigation")
+                    # Mini List for quick clicks
+                    for seq, idx in enumerate(optimized_order, 1):
+                        loc = all_locations[idx]
+                        st.markdown(f"**{seq}.** {loc['name'].split(',')[0]}")
+
+                # New Route Button
+                st.divider()
+                if st.button("Start New Route", use_container_width=True):
+                    st.session_state.page = "Route Specifications"
+                    st.rerun()
+
+            # VIEW detailed LIST
             if st.session_state.view_mode == 'list':
                 st.header("Itinerary")
                 
                 # Detailed Cards
                 for seq, idx in enumerate(optimized_order, 1):
                     loc = all_locations[idx]
-                    border_color = '#0F1A2B' if loc['type'] in ['Start', 'Return'] else '#02b4ff'
+                    border_color = '#3b82f6' if loc['type'] in ['Start', 'Return'] else'#ef4444'
                     gmaps_url = f"https://www.google.com/maps/search/?api=1&query={loc['lat']},{loc['lon']}"
                     
                     st.markdown(f"""
                     <div style="padding: 15px; background-color: white; border-radius: 8px; margin-bottom: 12px; border-left: 6px solid {border_color}; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <h4 style="margin:0; color:#0F1A2B;">{seq}. {loc['type']}</h4>
-                            <a href="{gmaps_url}" target="_blank" style="text-decoration:none; font-weight:bold; background:#D1CFC9; color:#0F1A2B; padding:6px 12px; border-radius:6px; border:1px solid #0F1A2B;">Address</a>
+                            <h4 style="margin:0; color:#333;">{seq}. {loc['type']}</h4>
+                            <a href="{gmaps_url}" target="_blank" style="text-decoration:none; font-weight:bold; background:#eff6ff; color:#2563eb; padding:6px 12px; border-radius:6px; border:1px solid #dbeafe;">Address</a>
                         </div>
-                        <p style="margin:5px 0 0 0; color: #0F1A2B; font-size:1.1em;">{loc['name']}</p>
+                        <p style="margin:5px 0 0 0; color: #555; font-size:1.1em;">{loc['name']}</p>
                     </div>
                     """, unsafe_allow_html=True)
 
             # VIEW B: FULL SCREEN MAP 
             else:
-                # Map Controls in Top Right Corner
-                col_map, col_controls = st.columns([5, 1])
-                
-                with col_controls:
-                    st.markdown("### Map Settings")
-                    style_options = {
-                        "Light": "mapbox://styles/mapbox/light-v10", 
-                        "Dark": "mapbox://styles/mapbox/dark-v10", 
-                        "Satellite": "mapbox://styles/mapbox/satellite-v9"
-                    }
-                    selected_style = st.selectbox(
-                        "Map Style", 
-                        list(style_options.keys()), 
-                        index=0
-                    )
-                
                 # Prepare Map Data
                 map_points = []
                 for seq, idx in enumerate(optimized_order, 1):
@@ -739,16 +718,21 @@ def show_calculation_page():
                     avg_lon = sum(p["lon"] for p in map_points) / len(map_points)
 
                 layers = []
+                
+                # Traffic
+                if show_traffic:
+                    traffic_layer = pdk.Layer(
+                        "TileLayer", data=None,
+                        get_tile_data=f"https://api.tomtom.com/traffic/map/4/tile/flow/relative-delay/{{z}}/{{x}}/{{y}}.png?key={api_key}",
+                        min_zoom=0, max_zoom=22, tileSize=256, opacity=0.9
+                    )
+                    layers.append(traffic_layer)
 
                 # Route Line
                 if selected_style in ["Satellite", "Dark"]:
                      line_color = [2, 180, 255, 200]
-                     point_fill = [255, 255, 255, 255] 
-                     point_line = [2, 180, 255, 255]
                 else:
-                     line_color = [15, 26, 43, 200]
-                     point_fill = [15, 26, 43, 255]
-                     point_line = [2, 180, 255, 255]
+                     line_color = [1, 1, 57, 200]
                      
                 if route_geometry:
                     layers.append(pdk.Layer(
@@ -762,6 +746,13 @@ def show_calculation_page():
                         get_path="path", get_color=line_color,
                         width_min_pixels=3, get_width=8, pickable=True
                     ))
+                # Point Colors based on style of the map
+                if selected_style in ["Satellite", "Dark"]:
+                    point_fill = [255, 255, 255, 255] 
+                    point_line = [2, 180, 255, 255]
+                else:
+                    point_fill = [1, 1, 57, 255]
+                    point_line = [2, 180, 255, 255]
                     
                 # Points
                 layers.append(pdk.Layer(
@@ -780,14 +771,14 @@ def show_calculation_page():
                     "TextLayer", data=map_points,
                     get_position="[lon, lat]", get_text="order",
                     get_size=16, get_color=[255, 255, 255],
-                    get_background_color=[15, 26, 43, 200], background_padding=[4,4]
+                    get_background_color=[200, 0, 0, 200], background_padding=[4,4]
                 ))
 
                 deck = pdk.Deck(
                     map_style=style_options[selected_style],
                     initial_view_state=pdk.ViewState(latitude=avg_lat, longitude=avg_lon, zoom=11, pitch=0, transition_duration=1000, controller=True),
                     layers=layers,
-                    tooltip={"html": "<div style='background: #0F1A2B; color: white; padding: 10px; border-radius: 5px; border: 1px solid #02b4ff;'><b>Stop {order}</b><br/>{name}</div>"
+                    tooltip={"html": "<div style='background: #010139; color: white; padding: 10px; border-radius: 5px; border: 1px solid #02b4ff;'><b>Stop {order}</b><br/>{name}</div>"
                     }
                 )
                     

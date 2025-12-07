@@ -123,7 +123,7 @@ NEW_THEME_CSS = """
     
     /* Sidebar dividers */
     section[data-testid="stSidebar"] hr {
-        margin: 2.5rem 0;
+        margin: 1.5rem 0;
         border: none;
         height: 1px;
         background: rgba(189, 196, 212, 0.2);
@@ -207,8 +207,8 @@ NEW_THEME_CSS = """
     
     /* ========== DOWNLOAD BUTTONS ========== */
     .stDownloadButton > button {
-        background: #010139;
-        color: #010139 !important;
+        background: #FFFFFF;
+        color: #1C2E4A !important;
         border: 2px solid #BDC4D4;
         border-radius: 10px;
         padding: 0.75rem 1.5rem;
@@ -220,7 +220,7 @@ NEW_THEME_CSS = """
     
     .stDownloadButton > button:hover {
         border-color: #52677D;
-        background-color: #010139 !important;
+        background: #F8F9FA;
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(82, 103, 125, 0.15);
     }
@@ -263,7 +263,7 @@ NEW_THEME_CSS = """
     
     /* ========== RADIO BUTTONS ========== */
     div[role="radiogroup"] {
-        gap: 1rem !important;
+        gap: 1rem;
     }
     
     div[role="radiogroup"] > label {
@@ -475,38 +475,10 @@ st.markdown("""
         background: #0F1a2b !important;
     }
     
-/* --- Sidebar Standardtexte WEISS lassen --- */
-section[data-testid="stSidebar"] h1,
-section[data-testid="stSidebar"] h2,
-section[data-testid="stSidebar"] h3,
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] span,
-section[data-testid="stSidebar"] div.stMarkdown,
-section[data-testid="stSidebar"] .route-item-spacing,
-section[data-testid="stSidebar"] .route-item-spacing *,
-section[data-testid="stSidebar"] .stText,
-section[data-testid="stSidebar"] .stText *,
-section[data-testid="stSidebar"] .stMarkdown * {
-    color: white !important;
-}
-
-/* --- Eingabefelder / Select / Checkbox SCHWARZ --- */
-section[data-testid="stSidebar"] .stTextInput input,
-section[data-testid="stSidebar"] .stSelectbox div,
-section[data-testid="stSidebar"] .stNumberInput input,
-section[data-testid="stSidebar"] .stCheckbox label,
-section[data-testid="stSidebar"] .stRadio label {
-    color: black !important;
-}
-
-/* --- Nur Map Controls Bereich schwarz --- */
-.map-controls-light-bg,
-.map-controls-light-bg * {
-    color: black !important;
-}
-
-
-
+    /* All text in sidebar white */
+    section[data-testid="stSidebar"] * {
+        color: white !important;
+    }
     /* Fix for dropdown items inside sidebar being visible when clicked */
     section[data-testid="stSidebar"] div[data-baseweb="select"] ul li {
         color: black !important;
@@ -531,8 +503,8 @@ section[data-testid="stSidebar"] .stRadio label {
     }
     
     .stButton > button[kind="primary"]:hover {
-        background: #010139 !important;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        background: #02b4ff; /* Bright Royal Blue on hover */
+        box-shadow: 0 4px 12px rgba(2, 180, 255, 0.3);
         transform: translateY(-1px);
     }
     
@@ -554,7 +526,7 @@ section[data-testid="stSidebar"] .stRadio label {
     .stTextInput > div > div > input,
     .stSelectbox > div > div,
     .stNumberInput > div > div > input {
-        border: 2px solid #010139 !important;
+        border: 2px solid #02b4ff; /* Royal Blue Border */
         border-radius: 6px;
         background-color: white;
         color: #010139;
@@ -597,166 +569,6 @@ section[data-testid="stSidebar"] .stRadio label {
     .block-container { padding-top: 1rem; padding-bottom: 0rem; }
 </style>
 """, unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-
-/* ----------- GLOBAL SIDEBAR REBUILD ----------- */
-
-section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0F1A2B 0%, #1C2E4A 100%) !important;
-    padding: 1.5rem 1.2rem !important;
-    width: 340px !important;
-    box-shadow: 4px 0 25px rgba(0,0,0,0.25);
-}
-
-/* Remove extra padding Streamlit adds */
-section[data-testid="stSidebar"] .block-container,
-section[data-testid="stSidebar"] .element-container {
-    padding: 0 !important;
-    margin: 0 !important;
-}
-
-/* ----------- HEADLINE ----------- */
-
-.sidebar-title {
-    font-family: 'Oswald', sans-serif;
-    font-size: 1.4rem;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    margin-bottom: 0.4rem;
-    color: #ffffffcc;
-}
-
-/* Thin accent line */
-.sidebar-accent {
-    width: 100%;
-    height: 2px;
-    background: rgba(255,255,255,0.12) !important;
-    margin: 0.4rem 0 1rem 0;
-    border-radius: 2px;
-}
-
-/* ----------- SECTIONS ----------- */
-
-.sidebar-section-title {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: #D1CFC9;
-    margin: 1.0rem 0 0.4rem 0;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* Compact text */
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] li,
-section[data-testid="stSidebar"] span {
-    font-size: 0.85rem !important;
-    color: #d8dbe2 !important;
-    line-height: 1.85 !important;
-    margin-bottom: 0rem !important;
-}
-
-/* ----------- EXPANDER ----------- */
-
-.sidebar-card {
-    background: rgba(255,255,255,0.04);
-    padding: 1rem 1rem;
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.08);
-    margin-bottom: 1rem;
-}
-
-/* Expander header */
-.streamlit-expanderHeader {
-    background: rgba(255,255,255,0.08) !important;
-    border-radius: 8px !important;
-    padding: 0.6rem 0.8rem !important;
-    color: white !important;
-    font-size: 0.9rem !important;
-    letter-spacing: 0.4px;
-}
-
-/* Expander body */
-.streamlit-expanderContent {
-    padding: 0.5rem 0.8rem 0.8rem 0.8rem !important;
-}
-
-/* ----------- BUTTONS ----------- */
-
-section[data-testid="stSidebar"] button {
-    font-family: 'Oswald', sans-serif !important;
-    font-size: 0.9rem !important;
-    padding: 0.6rem 0.8rem !important;
-    border-radius: 8px !important;
-    margin: 0rem 0 !important;
-}
-
-section[data-testid="stSidebar"] .stButton > button[kind="primary"] {
-    color: #0F1A2B !important;
-    border: none !important;
-    font-weight: 600 !important;
-}
-
-section[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
-    background: #010139 !important;
-    box-shadow: 0 0 10px #dbeafe;
-}
-
-/* ----------- DIVIDERS ----------- */
-
-section[data-testid="stSidebar"] hr {
-    height: 1px !important;
-    border: none !important;
-    background: rgba(255,255,255,0.12) !important;
-    margin: 0.8rem 0 !important;
-}
-
-/* ----------- ROUTE ITEMS ----------- */
-
-.sidebar-route-item {
-    color: white !important;
-    font-size: 0.86rem !important;
-    margin-bottom: 0.25rem !important;
-}
-
-.stDownloadButton > button {
-    background: #010139 !important; 
-}
-.stDownloadButton > button:hover {
-    background-color: #010139 !important;
-    box-shadow: 0 0 10px #dbeafe; 
-}
-
-button[data-testid="stSidebarCollapseButton"] {
-    display: none !important;
-}
-section[data-testid="stSidebar"] details[open] {
-    background-color: transparent !important;
-    border-color: transparent !important;
-}
-
-
-section[data-testid="stSidebar"] details[open] summary {
-    background-color: rgba(255,255,255,0.08) !important;
-    box-shadow: none !important;
-}
-
-
-section[data-testid="stSidebar"] div[data-testid="stExpanderDetails"] {
-    background-color: transparent !important;
-}
-
-
-
-
-
-
-
-</style>
-""", unsafe_allow_html=True)
-
 
 # -------- MANUAL OPTIMIZATION FUNCTION
 @st.cache_data(ttl=1800)  # Cache for 30 minutes
@@ -961,53 +773,23 @@ if 'stopovers' not in st.session_state:
 # -------- SIDEBAR
 # We only want to show the sidebar info on non-results pages
 if st.session_state.page != "Results": 
-    
-    # --- 1. BRANDING AND DIVIDER ---
-    
-    # Use a custom CSS class for the large brand name
-    st.sidebar.markdown('<div class="sidebar-title">ROUTE FINDER</div>', unsafe_allow_html=True)
-    # Custom accent line
-    st.sidebar.markdown('<div class="sidebar-accent"></div>', unsafe_allow_html=True)
-    
-    # --- 2. EXPANDER SECTIONS ---
-    
-    # 1. Resources
-    with st.sidebar.expander('Resources', expanded=False):
-        # Der Text ist jetzt direkt im Expander, ohne den sidebar-card Wrapper.
-        # Er wird dadurch automatisch kompakt formatiert.
-        st.markdown("""
-        **TomTom API**
-        We use the TomTom Routing & Search API for all geocoding and route optimization calculations.
-        - [TomTom Developer Portal](https://developer.tomtom.com)
-        """)
-    
-    # 2. How to Use
-    with st.sidebar.expander('How to Use', expanded=False):
-        st.markdown("""
-        **1. Specifications:** Enter the starting point and all stopovers. The app will find the optimal order for you.
-                    
-        ** ** 
-                    
-        **2. Vehicle Settings:** Define engine type, weight, and maximum speed to calculate the most efficient route (e.g., avoiding weight restrictions).
-                    
-        ** ** 
-                    
-        **3. Result:** View the optimized route, estimated travel time, and total distance.
-        """)
-    
-    # 3. About Us
-    with st.sidebar.expander('About Us', expanded=False):
+    st.sidebar.write('''
+        ## About _routefinder_
+        Built for truck drivers.
+        **Find the safest, fastest, and most efficient route with vehicle-specific insights!**
+
+        ## Resources
+        - [TomTom API](https://api.tomtom.com/search/2/search/)
+        ''')
+
+    with st.sidebar.expander('About us', expanded=False):
         st.markdown("""
         **Motivation:**
-        We noticed a lack of applications featuring detailed vehicle specification and optimized stopover routing.
-        
-        ** ** 
-        
-        **Usecase:**
-        - Planning truck routes for international logistics.
-        - Also works for: Finding the optimal route for dropping off friends/family after events.
+        We saw a lack of Vehicle Specification and stopover optimization in exisitng applications.
                     
-        ** ** 
+        **Usecase:**
+        - Planning of truck routes for international logistics.
+        - *(works also: Optimal route for dropping friends/familiy off after events.)*
 
         **Group members:**
         - Patrick Stoffel  
@@ -1015,7 +797,8 @@ if st.session_state.page != "Results":
         - Valerie Pieringer  
         - Gloria Tatzer  
         - Nils Stadler
-        """)
+        """)  
+
 # -------- PAGE 1: Route Specifications 
 def show_route_specs_page():
     col_left, col_center, col_right = st.columns([1, 2, 1])
@@ -1038,9 +821,10 @@ def show_route_specs_page():
         )
         
         st.subheader("Stopovers")
-        
         for i in range(len(st.session_state.stopovers)):
-            col_input, col_delete = st.columns([9, 1])
+            # Create two columns: Wide for input, narrow for the delete button
+            col_input, col_delete = st.columns([7, 1])
+            
             with col_input:
                 st.session_state.stopovers[i] = st.text_input(
                     f"Stopover {i+1}:",
@@ -1048,27 +832,29 @@ def show_route_specs_page():
                     placeholder="Format: Rothusstrasse 88, 3065 Bolligen, Schweiz",
                     key=f"stopover_{i}"
                 )
+            
             with col_delete:
-                st.markdown("<div style='height: 28px'></div>", unsafe_allow_html=True) 
-                if st.button("X", key=f"del_{i}", help="Remove this stopover"):
-                    st.session_state.stopovers.pop(i) 
-                    st.rerun() 
+                # Adds a little spacing so the button aligns with the text box
+                st.markdown("<div style='height: 28px'></div>", unsafe_allow_html=True)
+                # The Delete Button
+                if st.button("Remove", key=f"del_{i}", help="Remove this stopover"):
+                    st.session_state.stopovers.pop(i) # Remove from list
+                    st.rerun() # Refresh page immediately
         
-        col1, col2 = st.columns([1, 2])
-
+        col1, col2 = st.columns(2)
         with col1:
-            if st.button("Add Stopover", use_container_width=True):
-               st.session_state.stopovers.append("")
-               st.rerun()
-
+            if st.button(" Add Stopover"):
+                st.session_state.stopovers.append("")
+                st.rerun()
         with col2:
-            if st.button("Continue", type="primary", use_container_width=True):
+            if st.button("Continue", type="primary"):
                 if not start_loc:
                     st.error("Please enter a starting point")
-                elif len([s for s in st.session_state.stopovers if s.strip()]) == 0:
+                elif all(s.strip() == "" for s in st.session_state.stopovers):
                     st.error("Please add at least one stopover")
                 else:
                     st.session_state.start_loc = start_loc
+                
                     st.session_state.is_round_trip = (trip_type == "Round Trip (Return to Start)")
                     st.session_state.via_list = [s for s in st.session_state.stopovers if s.strip()]
                     st.session_state.page = "Vehicle Specifications"
@@ -1123,16 +909,14 @@ def show_vehicle_specs_page():
             step=5
         )
         
-
-        col1, col2 = st.columns([1, 3])  # Gleiche Breite für beide Spalten
-        
+        col1, col2 = st.columns(2)
         with col1:
-            if st.button("Back", use_container_width=True):  # Volle Breite in der Spalte
+            if st.button("Back"):
                 st.session_state.page = "Route Specifications"
                 st.rerun()
-
+        
         with col2:
-            if st.button("Calculate optimized Route", type="primary", use_container_width=True):  # Volle Breite in der Spalte
+            if st.button("Calculate optimized Route", type="primary"):
                 st.session_state.vehicleEngineType = vehicleEngineType
                 st.session_state.vehicleWeight = vehicleWeight
                 st.session_state.vehicleMaxSpeed = vehicleMaxSpeed
@@ -1234,16 +1018,16 @@ def show_calculation_page():
             
             # SIDEBAR
             with st.sidebar:
-                #  Start NewRoute Button at top
-                #wow
+                # Start New Route Button at top
                 if st.button("Start New Route", use_container_width=True, type="primary"):
-                   st.session_state.page = "Route Specifications"
-                   st.rerun()
-
+                    st.session_state.page = "Route Specifications"
+                    st.rerun()
+                
                 st.divider()
-
+                
                 # Adding estimated time with ML correction factor
                 st.title("Route Summary")
+                
                 st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #1C2E4A 0%, #0F1A2B 100%); 
                             padding: 1.5rem; border-radius: 12px; 
@@ -1262,15 +1046,12 @@ def show_calculation_page():
                 </div>
                 """, unsafe_allow_html=True)
                 
-                st.divider()
-
                 # Quick Navigation
                 st.subheader("Route Details")
                 for seq, idx in enumerate(optimized_order, 1):
                     loc = all_locations[idx]
-                    icon = "" if loc['type'] == "Start" else "" if loc['type'] == "Return" else ""
-                    item_content = f"{icon} <strong>{seq}.</strong> {loc['name'].split(',')[0]}"
-                    st.markdown(f'<div class="route-item-spacing">{item_content}</div>', unsafe_allow_html=True)
+                    icon = "🏁" if loc['type'] == "Start" else "🔄" if loc['type'] == "Return" else "📍"
+                    st.markdown(f"{icon} **{seq}.** {loc['name'].split(',')[0]}")
                 
                 st.divider()
                 
@@ -1307,19 +1088,9 @@ def show_calculation_page():
                 st.divider()
                 
                 # Toggle Button
-
                 btn_label = "⛶ View Full Details" if st.session_state.view_mode == 'map' else "Back to Map"
-                st.button(
-                btn_label, 
-                on_click=toggle_view_mode, 
-                use_container_width=True, 
-                type="primary",
-                key="map_toggle_button" 
-                )
+                st.button(btn_label, on_click=toggle_view_mode, use_container_width=True)
 
-                st.divider()
-
-                st.markdown('<div class="map-controls-light-bg">', unsafe_allow_html=True)
                 # Map Controls 
                 if st.session_state.view_mode == 'map':
                     st.subheader("Map Layers")
@@ -1328,9 +1099,17 @@ def show_calculation_page():
                     show_traffic = st.checkbox("Show Real-time Traffic", value=False)
                     
                     st.divider()
+                    st.caption("Quick Navigation")
+                    # Mini List for quick clicks
+                    for seq, idx in enumerate(optimized_order, 1):
+                        loc = all_locations[idx]
+                        st.markdown(f"**{seq}.** {loc['name'].split(',')[0]}")
 
-            st.divider()
-
+                # New Route Button
+                st.divider()
+                if st.button("Start New Route", use_container_width=True):
+                    st.session_state.page = "Route Specifications"
+                    st.rerun()
 
             # VIEW detailed LIST
             if st.session_state.view_mode == 'list':
@@ -1384,11 +1163,24 @@ def show_calculation_page():
                     </div>
                     """, unsafe_allow_html=True)
 
-                st.divider()
 
             # VIEW B: FULL SCREEN MAP 
             else:
+                # Map controls in top right
+                col_map, col_controls = st.columns([5, 1])
                 
+                with col_controls:
+                    st.markdown("### Map Settings")
+                    style_options = {
+                        "Light": "mapbox://styles/mapbox/light-v10", 
+                        "Dark": "mapbox://styles/mapbox/dark-v10", 
+                        "Satellite": "mapbox://styles/mapbox/satellite-v9"
+                    }
+                    selected_style = st.selectbox(
+                        "Map Style", 
+                        list(style_options.keys()), 
+                        index=0
+                    )
                 # Prepare Map Data
                 map_points = []
                 seen_coords = {}
@@ -1463,7 +1255,7 @@ def show_calculation_page():
                     get_radius=100,
                     radius_scale=1,
                     radius_min_pixels=15,
-                    radius_max_pixels=28,      
+                    radius_max_pixels=40,      
                     get_fill_color=point_fill, 
                     get_line_color=point_line, 
                     get_line_width=30,
