@@ -77,9 +77,9 @@ def load_or_train_model():
     
     # STEP 5: TRAIN THE MACHINE LEARNING MODEL
     # Random Forest: Creates multiple decision trees and averages their predictions
-    # n_estimators=100: Creates 100 decision trees
-    # random_state=42: Makes results reproducible (same random choices each time)
-    # max_depth=5: Limits how complex each tree can be (prevents overfitting)
+    # n_estimators=100 -> Creates 100 decision trees
+    # random_state=42 -> Makes results reproducible (same random choices each time)
+    # max_depth=5 -> Limits how complex each tree can be (prevents overfitting)
     model = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=5)
     
     # Train on training data
@@ -147,7 +147,7 @@ def predict_accident_risk(weather, time_of_day):
     # STEP 5: MAKE PREDICTION
     probability = model.predict_proba(features_scaled)[0][1]
     
-    return probability  # Returns a value between 0 and 1 representing accident risk
+    return probability  # Returns a value between 0 and 1 representing accident risk, based on the trained model
 
 
 # -----------------------------------------------------------------------
@@ -285,7 +285,7 @@ def call_route_api_with_optimization(start_coords, waypoint_coords, engine_type,
     best_route_geometry = None      # Store the best route geometry
     
     # Try different permutations (orders) of waypoints
-    # Limit number of permutations to avoid too many API calls
+    # Limit number of permutations to avoid too many API calls (obviously also limits the amount of stopovers you can optimize)
     max_permutations = 24
     permutations_tested = 0
     
@@ -406,14 +406,24 @@ show_model_training_message()
 
 # Sidebar provides static information that's always accessible
 st.sidebar.write('''
-    ## About _routefinder_
-    Built for truck drivers.
-    **Find the safest, fastest, and most sustainable route with vehicle-specific insights!**
-
+    ## RouteWise
+    RouteWise combines smart navigation with safety and sustainability insights for modern logistics. 
+    Plan safer, greener, and more efficient routes using real-time data and predictive analytics—built for drivers who care about their impact.
+                 
     ## Resources
     - [TomTom API](https://api.tomtom.com/search/2/search/)
     - [Dataset on accidents](https://www.kaggle.com/datasets/denkuznetz/traffic-accident-prediction) (adjusted for simplicity)
     ''')
+
+with st.sidebar.expander('Use Case', expanded=False):
+    st.markdown("""
+    This application helps truck drivers and logistics planners find the safest, most efficient, and most sustainable routes. It combines:
+    - **Route optimization:** Calculates the fastest route order for multiple stops
+    - **Safety prediction:** Uses machine learning to assess accident risk based on weather and time
+    - **Sustainability scoring:** Evaluates environmental impact based on vehicle type and route
+    - **Interactive mapping:** Visualizes the optimized route with all stops
+    Perfect for planning commercial deliveries while balancing safety, efficiency, and environmental responsibility.
+    """)
 
 with st.sidebar.expander('About us', expanded=False):
     st.markdown("""
@@ -864,8 +874,8 @@ def show_calculation_page():
                         ha='center', va='center', color='white', fontweight='bold')
                 
                 # Add risk level markers
-                risk_levels = [0, 40, 60, 80, 100]
-                risk_labels = ['High Risk', 'Medium Risk', 'Moderate Safety', 'Good Safety', 'Excellent Safety']
+                risk_levels = [0, 20, 40, 60, 80, 100]
+                risk_labels = ['High Risk', 'Medium Risk', 'Moderate Risk', 'Moderate Safety', 'Good Safety', 'Excellent Safety']
                 for level, label in zip(risk_levels, risk_labels):
                     ax1.axvline(x=level, color='gray', linestyle='--', alpha=0.5)
                     ax1.text(level, -0.3, label, rotation=45, ha='center', fontsize=8, alpha=0.7)
@@ -993,12 +1003,12 @@ def show_calculation_page():
                 for tip in tips:
                     st.write(f" - {tip}")
             
-            # TAB 4: Map (remains exactly the same)
+            # TAB 4: Map
             with tab4:
                 st.subheader("Route Map")
                 
-                if route_geometry:
-                    map_points = []
+                if route_geometry: 
+                    map_points = [] # Create a list of dictionaries for each stop to feed into Pydeck layers
                     for seq, idx in enumerate(optimized_order, 1):
                         loc = all_locations[idx]
                         map_points.append({
@@ -1008,12 +1018,14 @@ def show_calculation_page():
                             "order": str(seq)
                         })
                     
-                    if map_points:
+                    # Calculate the average lat/lon to automatically center the camera view
+                    if map_points: 
                         avg_lat = sum(p["lat"] for p in map_points) / len(map_points)
                         avg_lon = sum(p["lon"] for p in map_points) / len(map_points)
                         
                         layers = []
                         
+                        # Draws the continuous line connecting all points based on route_geometry
                         route_line_layer = pdk.Layer(
                             "PathLayer",
                             data=[{"path": route_geometry, "name": "Optimized Route"}],
@@ -1025,6 +1037,7 @@ def show_calculation_page():
                         )
                         layers.append(route_line_layer)
                         
+                        # Draws red circles at every specific stop location
                         points_layer = pdk.Layer(
                             "ScatterplotLayer",
                             data=map_points,
@@ -1035,6 +1048,7 @@ def show_calculation_page():
                         )
                         layers.append(points_layer)
                         
+                        # Overlays the stop order number on top of the markers
                         text_layer = pdk.Layer(
                             "TextLayer",
                             data=map_points,
@@ -1047,6 +1061,7 @@ def show_calculation_page():
                         )
                         layers.append(text_layer)
                         
+                        # Combine all layers into a Deck object
                         deck = pdk.Deck(
                             map_style="light",
                             initial_view_state=pdk.ViewState(
@@ -1059,7 +1074,7 @@ def show_calculation_page():
                             tooltip={"text": "{name}"},
                         )
 
-                        st.pydeck_chart(deck)
+                        st.pydeck_chart(deck) # Display the map in Streamlit
                 else:
                     st.warning("Route geometry not available for map display")
             
@@ -1068,7 +1083,8 @@ def show_calculation_page():
             if st.button("Back to Vehicle Specifications"):
                 st.session_state.page = "Vehicle Specifications"
                 st.rerun()
-                
+
+        # Fallback if the geometry calculation failed or wasn't provided        
         except Exception as e:
             st.error(f"Error calculating route: {str(e)}")
             if st.button("Go Back"):
